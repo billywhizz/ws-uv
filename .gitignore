@@ -3,3 +3,5 @@ tags
 *.o
 websock
 *Makefile
+http-parser*
+libuv*
