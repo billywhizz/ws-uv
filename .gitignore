@@ -1,0 +1,5 @@
+core
+tags
+*.o
+websock
+*Makefile
