@@ -50,11 +50,19 @@ Features
     compatible
   * only low level support - hands off messages to user. does not react to
     control messages or perform any logic around fragmented messages
+  * does not do any utf8 decoding for text frames. chunks of frame payloads
+    are returned as pointers to char buffers whether they are binary or text
   
 Future
 -----
 
   * support pausing of parser
+  * !!!!handle overflows on headers and header sizes!!!!
+  * allow user definable limits on headers and header sizes
+  * allow configuration of port, tcp backlog, nodelay, keepalive, connection
+    limits, bandwidth throttling, 
+  * daemonization
+  * cluster support by receiving socket on stdin/pipe
   * support quitting parser execution with return values from callbacks
   * no plans to add SSL support. if you want to do ssl then put something in
     front of this
@@ -62,13 +70,26 @@ Future
   * higher level api to deal with control frames and fragmented messages
   * possibly add support for static file serving and http 
     user modules
+  * SPDY support? do we really want to do ssl?
   * possibly add fastcgi and memcached protocol support
   * thread safety
   * node.js scripts for benchmarking
+  * tests
+  * benchmarks
+  * improve the make file to build and run tests
+  * windows/mac support
+  * clean and small websocket api for servers and clients
+  * easy to hook into server for running websocket applications
+  * user supplied c scripts (llvm)
+  * defined interface for libraries that can be loaded at runtime
+  * user scripts are written in c and can be compiled and run on the fly
+    by the server (llvm)
   
 
 Usage
 -----
+
+Parser:
 
 see test-parser.c for usage of the parser
 
