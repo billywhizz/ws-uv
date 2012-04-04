@@ -1,116 +1,107 @@
 libuv WebSocket
 ===============
 
-write a summary header
+this will eventually be a websocket server library and set of tools for 
+building fast and small websocket servers in c using the wonderful libuv. the
+goal is to be very small and very fast and leave most of the decisions to
+the user of the library
 
-Features:
+Proposed API
+-----
 
-  * this
-  * is a list of
-  * features
+  * sha1.h - function to calculate SHA1 hash of a buffer
+  * wsparser.h - functions for parsing websocket frames
+  * websock.h - functions for running websocket servers  
 
+Building
+-----
+
+    git clone git@github.com:billywhizz/ws-uv.git
+    cd ws-uv
+    git submodule init
+    git submodule update
+    make -j 4
+
+Running
+-----
+
+the websock server will listen on port 80. see main in websocket.c for setup
+
+    ./websock
+
+Features
+-----
+
+  * supports parsing of all websocket control and data frames from a stream
+  * evented io handled by libuv
+  * does not support HTTP beyond what is required for performing a websocket
+    handshake
+  * should be pretty straightforward to build on windows/mac. if anyone
+    feels like contributing patches for this, please feel free
+  * no plans to add SSL support. if you want to do ssl then put something in
+    front of this
+  * zero dependencies. libuv and http-parser are statically linked into the 
+    websocket library
+  * at startup only consumes 600KB of RAM on linux
+  * very small overhead per connection (need to measure)
+  * handshake performed using joyent http-parser which is very low overhead
+    and fast
+  * only supports http://tools.ietf.org/html/rfc6455. is not backwards 
+    compatible
+  * only low level support - hands off messages to user. does not react to
+    control messages or perform any logic around fragmented messages
+  
+Future
+-----
+
+  * support pausing of parser
+  * support quitting parser execution with return values from callbacks
+  * no plans to add SSL support. if you want to do ssl then put something in
+    front of this
+  * websocket extension support
+  * higher level api to deal with control frames and fragmented messages
+  * possibly add support for static file serving and http 
+    user modules
+  * possibly add fastcgi and memcached protocol support
+  * thread safety
+  * node.js scripts for benchmarking
+  
 
 Usage
 -----
 
-describe usage here
+see test-parser.c for usage of the parser
 
+    // websocket message struct
+    struct ws_header {
+      uint8_t fin;
+      uint8_t reserved[3];
+      uint8_t opcode;
+      uint32_t length;
+      uint8_t mask;
+      uint8_t maskkey[4];
+    };
+
+    // callbacks for parser
+    
+    // this is called when a websocket frame header has been parsed
+    int on_header(ws_parser* p);
+    // this is called for each chunk of the body of a frame received. it
+    // is up to the callee to manage assembly of message bodies
+    int on_chunk(ws_parser* p, const char* at, size_t len);
+    // called when a frame is complete
+    int on_complete(ws_parser* p);
+
+    // allocate a new parser
     ws_parser* parser = malloc(sizeof(ws_parser));
+    // allocate a settings structure
     ws_settings* settings = malloc(sizeof(ws_settings));
+    // set callbacks for parser
     settings->on_header = &on_header;
     settings->on_chunk = &on_chunk;
     settings->on_complete = &on_complete;
+    // initialise the parser. you should call this if you are reusing a parser
+    // across multiple connections
     ws_init(parser);
-    fprintf(stderr, "login\n");
-    ws_execute(parser, settings, login, 0, sizeof(login));
-    fprintf(stderr, "order\n");
-    ws_execute(parser, settings, order, 0, sizeof(order));
-    fprintf(stderr, "logout\n");
-    ws_execute(parser, settings, logout, 0, sizeof(logout));
-
-this is a paragraph
-
-and another one
-
-
-Something Imporant
-------------------------------
-
-blah blah blah
-
-        GET /demo HTTP/1.1
-        Upgrade: WebSocket
-        Connection: Upgrade
-        Host: example.com
-        Origin: http://example.com
-        WebSocket-Protocol: sample
-
-followed by non-HTTP data.
-
-(See http://tools.ietf.org/html/rfc6455 for more
-information the Web Socket protocol.)
-
-
-Callbacks
----------
-
-During the `http_parser_execute()` call, the callbacks set in
-`http_parser_settings` will be executed. The parser maintains state and
-never looks behind, so buffering the data is not necessary. If you need to
-save certain data for later usage, you can do that from the callbacks.
-
-There are two types of callbacks:
-
-* notification `typedef int (*http_cb) (http_parser*);`
-    Callbacks: on_message_begin, on_headers_complete, on_message_complete.
-* data `typedef int (*http_data_cb) (http_parser*, const char *at, size_t length);`
-    Callbacks: (requests only) on_uri,
-               (common) on_header_field, on_header_value, on_body;
-
-Callbacks must return 0 on success. Returning a non-zero value indicates
-error to the parser, making it exit immediately.
-
-In case you parse HTTP message in chunks (i.e. `read()` request line
-from socket, parse, read half headers, parse, etc) your data callbacks
-may be called more than once. Http-parser guarantees that data pointer is only
-valid for the lifetime of callback. You can also `read()` into a heap allocated
-buffer to avoid copying memory around if this fits your application.
-
-Reading headers may be a tricky task if you read/parse headers partially.
-Basically, you need to remember whether last header callback was field or value
-and apply following logic:
-
-    (on_header_field and on_header_value shortened to on_h_*)
-     ------------------------ ------------ --------------------------------------------
-    | State (prev. callback) | Callback   | Description/action                         |
-     ------------------------ ------------ --------------------------------------------
-    | nothing (first call)   | on_h_field | Allocate new buffer and copy callback data |
-    |                        |            | into it                                    |
-     ------------------------ ------------ --------------------------------------------
-    | value                  | on_h_field | New header started.                        |
-    |                        |            | Copy current name,value buffers to headers |
-    |                        |            | list and allocate new buffer for new name  |
-     ------------------------ ------------ --------------------------------------------
-    | field                  | on_h_field | Previous name continues. Reallocate name   |
-    |                        |            | buffer and append callback data to it      |
-     ------------------------ ------------ --------------------------------------------
-    | field                  | on_h_value | Value for current header started. Allocate |
-    |                        |            | new buffer and copy callback data to it    |
-     ------------------------ ------------ --------------------------------------------
-    | value                  | on_h_value | Value continues. Reallocate value buffer   |
-    |                        |            | and append callback data to it             |
-     ------------------------ ------------ --------------------------------------------
-
-
-Parsing URLs
-------------
-
-A simplistic zero-copy URL parser is provided as `http_parser_parse_url()`.
-Users of this library may wish to use it to parse URLs constructed from
-consecutive `on_url` callbacks.
-
-See examples of reading in headers:
-
-* [partial example](http://gist.github.com/155877) in C
-* [from http-parser tests](http://github.com/joyent/http-parser/blob/37a0ff8/test.c#L403) in C
-* [from Node library](http://github.com/joyent/node/blob/842eaf4/src/http.js#L284) in Javascript
+    // execute the parser with 
+    ws_execute(parser, settings, buffer, 0, sizeof(login));

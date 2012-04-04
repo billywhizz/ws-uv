@@ -40,5 +40,6 @@ struct ws_parser {
 };
 
 void ws_init(ws_parser* parser);
-size_t ws_execute(ws_parser* parser, const ws_settings* settings, const char* data, size_t start, size_t end);
+size_t ws_execute(ws_parser* parser, const ws_settings* settings, \
+  const char* data, size_t start, size_t end);
 void ws_reset(ws_parser* parser);
