@@ -83,11 +83,13 @@ static ws_settings wssettings = {
 
 static uv_tcp_t tcpServer;
 static uv_loop_t* loop;
-static const char* wshash = "                        258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+//TODO: this is not very secure - or does it matter?
+static const char* wshash = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
+//TODO: investigate buffer overflow issues etc.
 static char r400[96];
 static char r403[90];
-static char r101[129];
+static char r101[170];
 
 static void xxdprint(const char *buff, uint64_t offset, uint64_t size) {
 	uint64_t i = offset;

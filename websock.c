@@ -4,7 +4,7 @@ inline void context_init (uv_stream_t* handle) {
   _context* context = malloc(sizeof(_context));
   context->parser = malloc(sizeof(http_parser));
   context->request = malloc(sizeof(request));
-  strcpy(context->request->wskey, wshash);
+  //strcpy(context->request->wskey, wshash);
   context->request->id = 0;
   assert(context->request);
   context->request->handshake = 0;
@@ -104,12 +104,15 @@ int message_complete_cb (http_parser *p) {
   int i;
   for(i=0; i<req->num_headers; i++) {
     if(strncasecmp(req->headers[i][0], "Sec-WebSocket-Key", 17) == 0) {
-      strncpy(req->wskey, req->headers[i][1], 24);
+      int len = strlen(req->headers[i][1]);
+      strncpy(req->wskey, req->headers[i][1], len);
+      strncpy(req->wskey + len, wshash, strlen(wshash));
       break;
     }
   }
   shacalc(req->wskey, r101 + 97);
-  wr->buf = uv_buf_init(r101, 129);
+  wr->buf = uv_buf_init(r101, 170);
+  fprintf(stderr, r101);
   if (uv_write(&wr->req, ctx->handle, &wr->buf, 1, after_write)) {
     exit(1);
   }
@@ -129,8 +132,8 @@ int message_complete_cb (http_parser *p) {
 void after_write(uv_write_t* req, int status) {
   write_req_t* wr;
   if (status) {
-    uv_err_t err = uv_last_error(loop);
-    fprintf(stderr, "uv_write error: %s\n", uv_strerror(err));
+    //uv_err_t err = uv_last_error(loop);
+    fprintf(stderr, "uv_write error: %s\n", strerror(status));
   }
   wr = (write_req_t*) req;
   //TODO: if we are allocating a new buffer on each write we need to free it here
@@ -173,6 +176,8 @@ void after_read(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
     size_t np = ws_execute(ctx->wsparser, &wssettings, buf.base, 0, nread);
     write_req_t *wr;
     wr = (write_req_t*) malloc(sizeof *wr);
+    //char* foo = malloc(nread);
+    //memcpy(foo, buf.base, nread);
     wr->buf = uv_buf_init(buf.base, nread);
     if (uv_write(&wr->req, ctx->handle, &wr->buf, 1, after_write)) {
       exit(1);
@@ -195,7 +200,7 @@ void on_connection(uv_stream_t* server, int status) {
   uv_stream_t* stream;
   int r;
   if (status != 0) {
-    fprintf(stderr, "Connect error %d\n", uv_last_error(loop).code);
+    fprintf(stderr, "Connect error %d\n", status);
   }
   assert(status == 0);
   stream = malloc(sizeof(uv_tcp_t));
@@ -210,7 +215,7 @@ void on_connection(uv_stream_t* server, int status) {
 }
 
 int server_start(int port) {
-  strncpy(r101, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept:                             \r\n\r\n", 129);
+  strncpy(r101, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept:                             \r\nSec-WebSocket-Protocol: producer-client\r\n\r\n", 170);
   strncpy(r400, "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nContent-Type: text/plain\r\nConnection: Close\r\n\r\n", 96);
   strncpy(r403, "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nContent-Type: text/plain\r\nConnection: Close\r\n\r\n", 90);
   struct sockaddr_in addr = uv_ip4_addr("0.0.0.0", port);
