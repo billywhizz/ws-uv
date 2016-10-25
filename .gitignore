@@ -4,3 +4,4 @@ tags
 websock
 http-parser*
 libuv*
+node_modules

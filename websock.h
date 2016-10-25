@@ -57,11 +57,11 @@ static int headers_complete_cb (http_parser *p);
 static int message_complete_cb (http_parser *p);
 
 static void on_connection(uv_stream_t* server, int status);
-static void after_read(uv_stream_t* handle, ssize_t nread, uv_buf_t buf);
+static void after_read(uv_stream_t* handle, ssize_t nread, const uv_buf_t* buf);
 static void after_write(uv_write_t* req, int status);
 static void on_close(uv_handle_t* peer);
 static void after_shutdown(uv_shutdown_t* req, int status);
-static uv_buf_t echo_alloc(uv_handle_t* handle, size_t suggested_size);
+static void echo_alloc(uv_handle_t* handle, size_t size, uv_buf_t* buf);
 
 static int server_start(int port);
 

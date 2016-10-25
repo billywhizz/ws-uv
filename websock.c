@@ -150,22 +150,22 @@ void after_shutdown(uv_shutdown_t* req, int status) {
   free(req);
 }
 
-void after_read(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
+void after_read(uv_stream_t* handle, ssize_t nread, const uv_buf_t* buf) {
   if (nread < 0) {
-    if (buf.base) {
-      free(buf.base);
+    if (buf->base) {
+      //free(buf.base);
     }
     uv_close((uv_handle_t*)handle, on_close);
     return;
   }
   if (nread == 0) {
-    free(buf.base);
+    //free(buf.base);
     return;
   }
   _context* ctx = handle->data;
   if(ctx->request->handshake == 0) {
-    size_t np = http_parser_execute(ctx->parser, &settings, buf.base, nread);
-    free(buf.base);
+    size_t np = http_parser_execute(ctx->parser, &settings, buf->base, nread);
+    //free(buf.base);
     if(np != nread) {
       uv_shutdown_t* req;
       req = (uv_shutdown_t*) malloc(sizeof *req);
@@ -173,16 +173,16 @@ void after_read(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
     }
   }
   else {
-    size_t np = ws_execute(ctx->wsparser, &wssettings, buf.base, 0, nread);
+    size_t np = ws_execute(ctx->wsparser, &wssettings, buf->base, 0, nread);
     write_req_t *wr;
     wr = (write_req_t*) malloc(sizeof *wr);
     //char* foo = malloc(nread);
     //memcpy(foo, buf.base, nread);
-    wr->buf = uv_buf_init(buf.base, nread);
+    wr->buf = uv_buf_init(buf->base, nread);
     if (uv_write(&wr->req, ctx->handle, &wr->buf, 1, after_write)) {
       exit(1);
     }
-    free(buf.base);
+    //free(buf->base);
     if(np != nread) {
       uv_shutdown_t* req;
       req = (uv_shutdown_t*) malloc(sizeof *req);
@@ -191,9 +191,14 @@ void after_read(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
     }
   }
 }
-
+/*
 uv_buf_t echo_alloc(uv_handle_t* handle, size_t suggested_size) {
   return uv_buf_init(malloc(suggested_size), suggested_size);
+}
+*/
+void echo_alloc(uv_handle_t* handle, size_t size, uv_buf_t* buf) {
+  buf->base = malloc(size);
+  buf->len = size;
 }
 
 void on_connection(uv_stream_t* server, int status) {
@@ -218,14 +223,15 @@ int server_start(int port) {
   strncpy(r101, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept:                             \r\nSec-WebSocket-Protocol: producer-client\r\n\r\n", 170);
   strncpy(r400, "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nContent-Type: text/plain\r\nConnection: Close\r\n\r\n", 96);
   strncpy(r403, "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nContent-Type: text/plain\r\nConnection: Close\r\n\r\n", 90);
-  struct sockaddr_in addr = uv_ip4_addr("0.0.0.0", port);
+  struct sockaddr_in addr;
+  uv_ip4_addr("0.0.0.0", port, &addr);
   int r;
   r = uv_tcp_init(loop, &tcpServer);
   if (r) {
     fprintf(stderr, "Socket creation error\n");
     return 1;
   }
-  r = uv_tcp_bind(&tcpServer, addr);
+  r = uv_tcp_bind(&tcpServer, (const struct sockaddr*) &addr, 0);
   if (r) {
     fprintf(stderr, "Bind error\n");
     return 1;
@@ -241,6 +247,6 @@ int server_start(int port) {
 int main(int argc, char **argv) {
   loop = uv_default_loop();
   if (server_start(80)) return 1;
-  uv_run(loop);
+  uv_run(loop, UV_RUN_DEFAULT);
   return 0;
 }
