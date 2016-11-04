@@ -5,3 +5,7 @@ websock
 http-parser*
 libuv*
 node_modules
+build
+socket
+nodejs/build
+httpd
